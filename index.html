@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#121212">
-    <title>Barista Pro v3.9</title>
+    <title>Brewing Timer v1.0</title>
     <style>
         :root {
             --bg-color: #121212;
@@ -81,6 +81,15 @@
         .water-highlight { color: var(--success); font-weight: 900; font-size: 2.8rem; line-height: 1; }
         .total-water-highlight { color: var(--accent); font-weight: 900; font-size: 2.8rem; line-height: 1; }
 
+        .step-tip {
+            margin-top: 20px;
+            font-size: 1.75rem; 
+            color: var(--text-sub);
+            font-weight: 600;
+            min-height: 2.1rem; 
+            word-break: keep-all;
+        }
+
         .timer-container {
             display: flex;
             flex-direction: column;
@@ -145,11 +154,20 @@
             padding: 15px; 
             margin-bottom: 10px; 
             border-radius: 12px; 
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .recipe-row-1 {
             display: grid; 
             grid-template-columns: 1fr 1fr 1fr 1fr 40px; 
             gap: 8px; 
             align-items: center; 
         }
+        .recipe-row-2 {
+            display: flex;
+        }
+        
         input, select { 
             background: #2a2a2a; 
             border: 1px solid #333; 
@@ -169,11 +187,21 @@
             border-radius: 12px;
             border-left: 4px solid var(--accent);
         }
+
+        .saved-recipes { margin-top: 30px; border-top: 1px solid #333; padding-top: 20px; }
+        .saved-item {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #252525; padding: 15px; border-radius: 10px; margin-bottom: 8px;
+        }
+        .saved-title { font-weight: bold; font-size: 1rem; }
+        .saved-actions button { margin-left: 5px; padding: 8px 12px; font-size: 0.9rem; border-radius: 6px; cursor: pointer; border: none; }
+        .btn-load { background: #444; color: #fff; }
+        .btn-del { background: #330000; color: var(--danger); }
     </style>
 </head>
 <body>
 
-<header>Barista Pro v3.9</header>
+<header id="app-header">Brewing Timer v1.0</header>
 <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('timer')">타이머</button>
     <button class="tab-btn" onclick="switchTab('editor')">레시피</button>
@@ -200,6 +228,7 @@
                     <span class="total-water-highlight" id="totalWater">0g</span>
                 </div>
             </div>
+            <div class="step-tip" id="curStepTip"></div>
         </div>
 
         <div class="timer-container">
@@ -226,12 +255,20 @@
     </div>
 
     <div id="view-editor" class="view">
-        <div style="color:#888; margin-bottom:10px; font-size:0.8rem; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 40px; text-align:center;">
-            <div>단계명</div><div>방법</div><div>물(g)</div><div>시간(초)</div><div></div>
+        <div style="color:#888; margin-bottom:10px; font-size:0.8rem; text-align:center;">
+            단계명 / 방법 / 물(g) / 시간(초) + 팁(Tip)
         </div>
         <div id="recipeList"></div>
         <button class="btn" style="background:var(--success); color:#fff; margin-top:10px; width:100%;" onclick="addStep()">+ 단계 추가</button>
-        <button class="btn" style="background:var(--accent); color:#000; margin-top:10px; width:100%;" onclick="saveRecipe()">레시피 저장</button>
+        
+        <div class="saved-recipes">
+            <h3 style="color:#fff; margin-bottom:10px;">레시피 보관함</h3>
+            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <input type="text" id="recipeNameInput" placeholder="레시피 이름 (예: 아이스 드립)" style="flex:1; text-align:left;">
+                <button class="btn" style="background:var(--accent); color:#000; flex:0.4; padding:10px;" onclick="saveToLibrary()">보관함 저장</button>
+            </div>
+            <div id="savedList"></div>
+        </div>
     </div>
 
     <div id="view-logs" class="view">
@@ -242,12 +279,14 @@
 </main>
 
 <script>
-    let recipe = JSON.parse(localStorage.getItem('myRecipe_v3_9')) || [
-        { name: "뜸 들이기", method: "푸어", time: 35, water: 40 },
-        { name: "1차 추출", method: "푸어", time: 60, water: 80 },
-        { name: "2차 추출", method: "침출", time: 60, water: 80 }
+    let recipe = JSON.parse(localStorage.getItem('activeRecipe_v4')) || [
+        { name: "뜸 들이기", method: "푸어", time: 35, water: 40, tip: "골고루 적셔주세요" },
+        { name: "1차 추출", method: "푸어", time: 60, water: 80, tip: "천천히 부어주세요" },
+        { name: "2차 추출", method: "침출", time: 60, water: 80, tip: "스위치 닫고 대기" }
     ];
-    let logs = JSON.parse(localStorage.getItem('brewLogs_v3_9')) || [];
+    
+    let recipeLibrary = JSON.parse(localStorage.getItem('recipeLibrary_v4')) || [];
+    let logs = JSON.parse(localStorage.getItem('brewLogs_v4')) || [];
     let timerIdx = null, startTs = 0, elapsed = 0, running = false;
     let wakeLock = null;
     let warnedImmersionStart = -1; 
@@ -338,6 +377,7 @@
         document.getElementById('curStepName').innerText = "준비";
         document.getElementById('curWater').innerText = "0g";
         document.getElementById('totalWater').innerText = "0g";
+        document.getElementById('curStepTip').innerText = ""; 
         document.getElementById('btnStart').innerText = "추출 시작";
     }
 
@@ -360,7 +400,6 @@
                 document.getElementById('stepTimeCurrent').innerText = formatTime(stepElapsed);
                 document.getElementById('stepTimeTarget').innerText = formatTime(rTime);
                 
-                // [수정] 침출 시작 알림 타이밍 조정: 시작 2초 전
                 if (i + 1 < recipe.length) {
                     let nextStep = recipe[i+1];
                     if (nextStep.method === "침출" && timeLeftInStep === 2 && warnedImmersionStart !== (i+1)) {
@@ -368,13 +407,10 @@
                         warnedImmersionStart = i + 1;
                     }
                 }
-
-                // 침출 종료 알림: 끝 2초 전
                 if (cur.method === "침출" && timeLeftInStep === 2 && warnedImmersionEnd !== i) {
                     speak("스위치를 열어주세요");
                     warnedImmersionEnd = i;
                 }
-
                 break;
             }
             accT += rTime;
@@ -384,18 +420,21 @@
         document.getElementById('totalTime').innerText = formatTime(totalSec);
 
         if(cur) {
-            // [수정] 화면 단계 표시 형식 변경: "단계명 (드립 방법)"
             const displayTitle = `${cur.name} (${cur.method})`;
             if(document.getElementById('curStepName').innerText !== displayTitle) {
                 document.getElementById('curStepName').innerText = displayTitle;
-                // 음성 안내 순서: 단계명 - 방법 - 물 - 시간
-                speak(`${cur.name}, ${cur.method}, ${cur.water}그램, ${cur.time}초`);
+                document.getElementById('curStepTip').innerText = cur.tip || "";
+                
+                // [수정] 음성 안내에 '팁' 정보 추가
+                const tipText = cur.tip ? `, 팁, ${cur.tip}` : "";
+                speak(`${cur.name}, ${cur.method}, ${cur.water}그램, ${cur.time}초 ${tipText}`);
                 blink();
             }
             document.getElementById('curWater').innerText = cur.water + "g";
             document.getElementById('totalWater').innerText = (accW + parseInt(cur.water)) + "g";
         } else if(totalSec >= accT && recipe.length > 0 && running) {
             document.getElementById('curStepName').innerText = "추출 완료";
+            document.getElementById('curStepTip').innerText = "";
             speak("추출이 완료되었습니다.");
             pauseTimer();
         }
@@ -424,7 +463,7 @@
         
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         if(id==='timer') document.querySelectorAll('.tab-btn')[0].classList.add('active');
-        if(id==='editor') { document.querySelectorAll('.tab-btn')[1].classList.add('active'); renderEditor(); }
+        if(id==='editor') { document.querySelectorAll('.tab-btn')[1].classList.add('active'); renderEditor(); renderLibrary(); }
         if(id==='logs') document.querySelectorAll('.tab-btn')[2].classList.add('active');
     }
 
@@ -432,27 +471,92 @@
         const list = document.getElementById('recipeList');
         list.innerHTML = recipe.map((r, i) => `
             <div class="recipe-item">
-                <input type="text" placeholder="단계명" value="${r.name}" onchange="recipe[${i}].name=this.value">
-                <select onchange="recipe[${i}].method=this.value">
-                    <option value="푸어" ${r.method === '푸어' ? 'selected' : ''}>푸어</option>
-                    <option value="침출" ${r.method === '침출' ? 'selected' : ''}>침출</option>
-                </select>
-                <input type="number" placeholder="물(g)" value="${r.water}" onchange="recipe[${i}].water=this.value">
-                <input type="number" placeholder="시간" value="${r.time}" onchange="recipe[${i}].time=this.value">
-                <button onclick="deleteStep(${i})" style="background:none;border:none;color:var(--danger);font-size:1.5rem;">&times;</button>
+                <div class="recipe-row-1">
+                    <input type="text" placeholder="단계명" value="${r.name}" onchange="recipe[${i}].name=this.value">
+                    <select onchange="recipe[${i}].method=this.value">
+                        <option value="푸어" ${r.method === '푸어' ? 'selected' : ''}>푸어</option>
+                        <option value="침출" ${r.method === '침출' ? 'selected' : ''}>침출</option>
+                    </select>
+                    <input type="number" placeholder="물(g)" value="${r.water}" onchange="recipe[${i}].water=this.value">
+                    <input type="number" placeholder="시간" value="${r.time}" onchange="recipe[${i}].time=this.value">
+                    <button onclick="deleteStep(${i})" style="background:none;border:none;color:var(--danger);font-size:1.5rem;">&times;</button>
+                </div>
+                <div class="recipe-row-2">
+                    <input type="text" placeholder="팁 (예: 천천히 부어주세요)" value="${r.tip || ''}" onchange="recipe[${i}].tip=this.value" style="text-align:left; color:var(--accent);">
+                </div>
+            </div>
+        `).join('');
+        localStorage.setItem('activeRecipe_v4', JSON.stringify(recipe));
+    }
+
+    function addStep() { 
+        recipe.push({name:"추가 단계", method:"푸어", time:30, water:50, tip:""}); 
+        renderEditor(); 
+    }
+    
+    function deleteStep(i) { 
+        recipe.splice(i,1); 
+        renderEditor(); 
+    }
+
+    function saveToLibrary() {
+        const nameInput = document.getElementById('recipeNameInput');
+        const name = nameInput.value.trim();
+        if(!name) { alert("레시피 이름을 입력해주세요."); return; }
+        
+        const existingIdx = recipeLibrary.findIndex(item => item.name === name);
+        if(existingIdx >= 0) {
+            if(!confirm("이미 같은 이름의 레시피가 있습니다. 덮어쓰시겠습니까?")) return;
+            recipeLibrary[existingIdx].data = JSON.parse(JSON.stringify(recipe));
+        } else {
+            recipeLibrary.push({ name: name, data: JSON.parse(JSON.stringify(recipe)) });
+        }
+        
+        localStorage.setItem('recipeLibrary_v4', JSON.stringify(recipeLibrary));
+        alert("보관함에 저장되었습니다.");
+        nameInput.value = "";
+        renderLibrary();
+    }
+
+    function renderLibrary() {
+        const list = document.getElementById('savedList');
+        if(recipeLibrary.length === 0) {
+            list.innerHTML = "<div style='color:#666; text-align:center; padding:20px;'>저장된 레시피가 없습니다.</div>";
+            return;
+        }
+        list.innerHTML = recipeLibrary.map((item, idx) => `
+            <div class="saved-item">
+                <div class="saved-title">${item.name} <span style="font-size:0.8rem; color:#888;">(${item.data.length}단계)</span></div>
+                <div class="saved-actions">
+                    <button class="btn-load" onclick="loadRecipe(${idx})">불러오기</button>
+                    <button class="btn-del" onclick="deleteRecipe(${idx})">삭제</button>
+                </div>
             </div>
         `).join('');
     }
-    
-    function addStep() { recipe.push({name:"추가 단계", method:"푸어", time:30, water:50}); renderEditor(); }
-    function deleteStep(i) { recipe.splice(i,1); renderEditor(); }
-    function saveRecipe() { localStorage.setItem('myRecipe_v3_9', JSON.stringify(recipe)); alert("레시피 저장됨"); switchTab('timer'); resetTimer(); }
+
+    function loadRecipe(idx) {
+        if(!confirm("현재 작성 중인 레시피가 사라집니다. 불러오시겠습니까?")) return;
+        recipe = JSON.parse(JSON.stringify(recipeLibrary[idx].data));
+        renderEditor();
+        localStorage.setItem('activeRecipe_v4', JSON.stringify(recipe));
+        alert("레시피를 불러왔습니다.");
+        resetTimer();
+        switchTab('timer');
+    }
+
+    function deleteRecipe(idx) {
+        if(!confirm("정말 삭제하시겠습니까?")) return;
+        recipeLibrary.splice(idx, 1);
+        localStorage.setItem('recipeLibrary_v4', JSON.stringify(recipeLibrary));
+        renderLibrary();
+    }
 
     function saveLog() {
         const bean = document.getElementById('logBean').value || "Unnamed Coffee";
         const dateStr = new Date().toLocaleString('ko-KR', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
         logs.unshift({d: dateStr, b: bean});
-        localStorage.setItem('brewLogs_v3_9', JSON.stringify(logs));
+        localStorage.setItem('brewLogs_v4', JSON.stringify(logs));
         renderLogs(); 
         document.getElementById('logBean').value = "";
     }
