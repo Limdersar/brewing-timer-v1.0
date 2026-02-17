@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#121212">
+    <title>Barista Pro v3.9</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-main: #ffffff;
+            --text-sub: #aaaaaa; 
+            --text-dim: #888888;
+            --accent: #d4a373; 
+            --danger: #ef4444;
+            --success: #22c55e;
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            font-family: var(--font-main); 
+            margin: 0; 
+            padding: 0; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        header { 
+            padding: 15px; 
+            text-align: center; 
+            background-color: var(--card-bg); 
+            border-bottom: 1px solid #333;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .tabs { display: flex; justify-content: space-around; background: #000; padding: 10px 0; border-bottom: 1px solid #333; }
+        .tab-btn { background: none; border: none; color: var(--text-dim); font-size: 1rem; font-weight: 600; padding: 10px 20px; }
+        .tab-btn.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
+
+        main { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; }
+        .view { display: none; width: 100%; height: 100%; }
+        .view.active { display: flex; flex-direction: column; }
+
+        .info-card {
+            background-color: var(--card-bg); 
+            border-radius: 20px; 
+            padding: 25px 15px;
+            margin-bottom: 20px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: border-color 0.3s;
+        }
+
+        .weight-row {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            align-items: baseline;
+            margin-top: 10px;
+        }
+
+        .weight-label {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .water-highlight { color: var(--success); font-weight: 900; font-size: 2.8rem; line-height: 1; }
+        .total-water-highlight { color: var(--accent); font-weight: 900; font-size: 2.8rem; line-height: 1; }
+
+        .timer-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            gap: 15px;
+        }
+
+        .time-row {
+            text-align: center;
+            width: 100%;
+        }
+
+        .time-label {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .big-time-font {
+            font-size: 4.5rem; 
+            font-weight: 800;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -2px;
+        }
+
+        .total-time-val { color: var(--accent); }
+
+        .step-time-display {
+            font-size: 2.5rem; 
+            font-weight: 700;
+            color: var(--text-sub);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .countdown-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .countdown-num { font-size: 10rem; font-weight: 900; color: var(--accent); }
+
+        .step-name { font-size: 1.8rem; font-weight: 800; margin-bottom: 15px; color: #fff; }
+
+        .controls { display: flex; gap: 12px; margin-top: 20px; width: 100%; margin-bottom: 10px; }
+        .btn { padding: 18px; border-radius: 16px; border: none; font-size: 1.1rem; font-weight: 700; cursor: pointer; flex: 1; }
+        .btn-start { background-color: var(--accent); color: #000; }
+        .btn-stop { background-color: var(--danger); color: #fff; display: none; }
+        .btn-reset { background-color: #333; color: #fff; flex: 0.4; }
+
+        .recipe-item { 
+            background: var(--card-bg); 
+            padding: 15px; 
+            margin-bottom: 10px; 
+            border-radius: 12px; 
+            display: grid; 
+            grid-template-columns: 1fr 1fr 1fr 1fr 40px; 
+            gap: 8px; 
+            align-items: center; 
+        }
+        input, select { 
+            background: #2a2a2a; 
+            border: 1px solid #333; 
+            color: #fff; 
+            padding: 10px 5px; 
+            border-radius: 8px; 
+            width: 100%; 
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        input[type="text"] { text-align: left; }
+        
+        .log-entry { 
+            background: var(--card-bg);
+            margin-bottom: 10px;
+            padding: 15px;
+            border-radius: 12px;
+            border-left: 4px solid var(--accent);
+        }
+    </style>
+</head>
+<body>
+
+<header>Barista Pro v3.9</header>
+<div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('timer')">타이머</button>
+    <button class="tab-btn" onclick="switchTab('editor')">레시피</button>
+    <button class="tab-btn" onclick="switchTab('logs')">기록</button>
+</div>
+
+<div id="countdownBox" class="countdown-overlay">
+    <div style="font-size: 1.5rem; color: #fff; margin-bottom: 20px;">준비하세요!</div>
+    <div id="countdownText" class="countdown-num">5</div>
+</div>
+
+<main>
+    <div id="view-timer" class="view active">
+        <div class="info-card" id="stepBox">
+            <div class="step-name" id="curStepName">준비</div>
+            <div class="weight-row">
+                <div>
+                    <div class="weight-label">이번 투입</div>
+                    <span class="water-highlight" id="curWater">0g</span>
+                </div>
+                <div style="color: #444; font-size: 2.5rem; font-weight: 300;">/</div>
+                <div>
+                    <div class="weight-label">누적 목표</div>
+                    <span class="total-water-highlight" id="totalWater">0g</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="timer-container">
+            <div class="time-row">
+                <div class="time-label">Total Elapsed</div>
+                <div class="big-time-font total-time-val" id="totalTime">00:00</div>
+            </div>
+
+            <div class="time-row">
+                <div class="time-label">Step Progress</div>
+                <div id="stepTimeContainer" class="step-time-display">
+                    <span id="stepTimeCurrent">00:00</span>
+                    <span style="color: #444; margin: 0 5px;">/</span>
+                    <span id="stepTimeTarget" style="color: #444;">00:00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-reset" onclick="resetTimer()">리셋</button>
+            <button class="btn btn-start" id="btnStart" onclick="handleStart()">추출 시작</button>
+            <button class="btn btn-stop" id="btnStop" onclick="pauseTimer()">일시 정지</button>
+        </div>
+    </div>
+
+    <div id="view-editor" class="view">
+        <div style="color:#888; margin-bottom:10px; font-size:0.8rem; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 40px; text-align:center;">
+            <div>단계명</div><div>방법</div><div>물(g)</div><div>시간(초)</div><div></div>
+        </div>
+        <div id="recipeList"></div>
+        <button class="btn" style="background:var(--success); color:#fff; margin-top:10px; width:100%;" onclick="addStep()">+ 단계 추가</button>
+        <button class="btn" style="background:var(--accent); color:#000; margin-top:10px; width:100%;" onclick="saveRecipe()">레시피 저장</button>
+    </div>
+
+    <div id="view-logs" class="view">
+        <input type="text" id="logBean" placeholder="원두 정보 입력" style="margin-bottom:15px; padding: 15px;">
+        <button class="btn btn-start" onclick="saveLog()" style="width:100%;">기록 저장</button>
+        <div id="logHistory" style="margin-top:20px;"></div>
+    </div>
+</main>
+
+<script>
+    let recipe = JSON.parse(localStorage.getItem('myRecipe_v3_9')) || [
+        { name: "뜸 들이기", method: "푸어", time: 35, water: 40 },
+        { name: "1차 추출", method: "푸어", time: 60, water: 80 },
+        { name: "2차 추출", method: "침출", time: 60, water: 80 }
+    ];
+    let logs = JSON.parse(localStorage.getItem('brewLogs_v3_9')) || [];
+    let timerIdx = null, startTs = 0, elapsed = 0, running = false;
+    let wakeLock = null;
+    let warnedImmersionStart = -1; 
+    let warnedImmersionEnd = -1;   
+
+    const synth = window.speechSynthesis;
+    let targetVoice = null;
+
+    function loadVoices() {
+        const voices = synth.getVoices();
+        targetVoice = voices.find(v => v.lang === 'ko-KR' && v.name.includes('Google')) ||
+                      voices.find(v => v.lang === 'ko-KR');
+    }
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = loadVoices;
+    }
+    loadVoices();
+
+    function speak(text) {
+        synth.cancel();
+        let u = new SpeechSynthesisUtterance(text);
+        u.lang = 'ko-KR';
+        if (targetVoice) u.voice = targetVoice;
+        u.rate = 0.95; 
+        u.pitch = 1.0; 
+        synth.speak(u);
+    }
+
+    async function handleStart() {
+        if(running) return;
+        if(elapsed > 0) {
+            startTimer();
+            return;
+        }
+
+        const overlay = document.getElementById('countdownBox');
+        const text = document.getElementById('countdownText');
+        overlay.style.display = 'flex';
+        
+        let count = 5;
+        text.innerText = count;
+        speak(count.toString());
+
+        const countInterval = setInterval(() => {
+            count--;
+            if(count > 0) {
+                text.innerText = count;
+                speak(count.toString());
+            } else {
+                clearInterval(countInterval);
+                overlay.style.display = 'none';
+                startTimer();
+            }
+        }, 1000);
+    }
+
+    async function startTimer() {
+        if(!running) {
+            speak(""); 
+            running = true;
+            startTs = Date.now() - (elapsed * 1000);
+            timerIdx = setInterval(update, 100);
+            document.getElementById('btnStart').style.display = 'none';
+            document.getElementById('btnStop').style.display = 'block';
+            if ('wakeLock' in navigator) {
+                try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+            }
+        }
+    }
+
+    function pauseTimer() {
+        running = false;
+        clearInterval(timerIdx);
+        document.getElementById('btnStart').style.display = 'block';
+        document.getElementById('btnStop').style.display = 'none';
+        document.getElementById('btnStart').innerText = "재개";
+        if(wakeLock) { wakeLock.release(); wakeLock = null; }
+    }
+
+    function resetTimer() {
+        pauseTimer(); 
+        elapsed = 0;
+        warnedImmersionStart = -1;
+        warnedImmersionEnd = -1;
+        document.getElementById('totalTime').innerText = "00:00";
+        document.getElementById('stepTimeCurrent').innerText = "00:00";
+        document.getElementById('stepTimeTarget').innerText = "00:00";
+        document.getElementById('curStepName').innerText = "준비";
+        document.getElementById('curWater').innerText = "0g";
+        document.getElementById('totalWater').innerText = "0g";
+        document.getElementById('btnStart').innerText = "추출 시작";
+    }
+
+    function update() {
+        elapsed = Math.floor((Date.now() - startTs) / 1000);
+        updateUI(elapsed);
+    }
+
+    function updateUI(totalSec) {
+        let accT = 0, accW = 0, cur = null;
+        
+        for(let i=0; i < recipe.length; i++) {
+            let r = recipe[i];
+            let rTime = parseInt(r.time);
+            if(totalSec >= accT && totalSec < accT + rTime) {
+                cur = r;
+                let stepElapsed = totalSec - accT;
+                let timeLeftInStep = rTime - stepElapsed;
+
+                document.getElementById('stepTimeCurrent').innerText = formatTime(stepElapsed);
+                document.getElementById('stepTimeTarget').innerText = formatTime(rTime);
+                
+                // [수정] 침출 시작 알림 타이밍 조정: 시작 2초 전
+                if (i + 1 < recipe.length) {
+                    let nextStep = recipe[i+1];
+                    if (nextStep.method === "침출" && timeLeftInStep === 2 && warnedImmersionStart !== (i+1)) {
+                        speak("스위치를 닫아주세요");
+                        warnedImmersionStart = i + 1;
+                    }
+                }
+
+                // 침출 종료 알림: 끝 2초 전
+                if (cur.method === "침출" && timeLeftInStep === 2 && warnedImmersionEnd !== i) {
+                    speak("스위치를 열어주세요");
+                    warnedImmersionEnd = i;
+                }
+
+                break;
+            }
+            accT += rTime;
+            accW += parseInt(r.water);
+        }
+
+        document.getElementById('totalTime').innerText = formatTime(totalSec);
+
+        if(cur) {
+            // [수정] 화면 단계 표시 형식 변경: "단계명 (드립 방법)"
+            const displayTitle = `${cur.name} (${cur.method})`;
+            if(document.getElementById('curStepName').innerText !== displayTitle) {
+                document.getElementById('curStepName').innerText = displayTitle;
+                // 음성 안내 순서: 단계명 - 방법 - 물 - 시간
+                speak(`${cur.name}, ${cur.method}, ${cur.water}그램, ${cur.time}초`);
+                blink();
+            }
+            document.getElementById('curWater').innerText = cur.water + "g";
+            document.getElementById('totalWater').innerText = (accW + parseInt(cur.water)) + "g";
+        } else if(totalSec >= accT && recipe.length > 0 && running) {
+            document.getElementById('curStepName').innerText = "추출 완료";
+            speak("추출이 완료되었습니다.");
+            pauseTimer();
+        }
+    }
+
+    function formatTime(s) {
+        const m = Math.floor(s/60).toString().padStart(2,'0');
+        const sc = (s%60).toString().padStart(2,'0');
+        return `${m}:${sc}`;
+    }
+
+    function blink() { 
+        let b = document.getElementById('stepBox'); 
+        b.style.borderColor = "var(--accent)"; 
+        setTimeout(()=>b.style.borderColor="transparent", 600); 
+    }
+
+    function switchTab(id) {
+        document.querySelectorAll('.view').forEach(v => {
+            v.classList.remove('active');
+            v.style.display = 'none';
+        });
+        const targetView = document.getElementById('view-'+id);
+        targetView.classList.add('active');
+        targetView.style.display = (id === 'timer') ? 'flex' : 'block';
+        
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        if(id==='timer') document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        if(id==='editor') { document.querySelectorAll('.tab-btn')[1].classList.add('active'); renderEditor(); }
+        if(id==='logs') document.querySelectorAll('.tab-btn')[2].classList.add('active');
+    }
+
+    function renderEditor() {
+        const list = document.getElementById('recipeList');
+        list.innerHTML = recipe.map((r, i) => `
+            <div class="recipe-item">
+                <input type="text" placeholder="단계명" value="${r.name}" onchange="recipe[${i}].name=this.value">
+                <select onchange="recipe[${i}].method=this.value">
+                    <option value="푸어" ${r.method === '푸어' ? 'selected' : ''}>푸어</option>
+                    <option value="침출" ${r.method === '침출' ? 'selected' : ''}>침출</option>
+                </select>
+                <input type="number" placeholder="물(g)" value="${r.water}" onchange="recipe[${i}].water=this.value">
+                <input type="number" placeholder="시간" value="${r.time}" onchange="recipe[${i}].time=this.value">
+                <button onclick="deleteStep(${i})" style="background:none;border:none;color:var(--danger);font-size:1.5rem;">&times;</button>
+            </div>
+        `).join('');
+    }
+    
+    function addStep() { recipe.push({name:"추가 단계", method:"푸어", time:30, water:50}); renderEditor(); }
+    function deleteStep(i) { recipe.splice(i,1); renderEditor(); }
+    function saveRecipe() { localStorage.setItem('myRecipe_v3_9', JSON.stringify(recipe)); alert("레시피 저장됨"); switchTab('timer'); resetTimer(); }
+
+    function saveLog() {
+        const bean = document.getElementById('logBean').value || "Unnamed Coffee";
+        const dateStr = new Date().toLocaleString('ko-KR', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+        logs.unshift({d: dateStr, b: bean});
+        localStorage.setItem('brewLogs_v3_9', JSON.stringify(logs));
+        renderLogs(); 
+        document.getElementById('logBean').value = "";
+    }
+    function renderLogs() {
+        document.getElementById('logHistory').innerHTML = logs.map(l => `
+            <div class="log-entry">
+                <div style="font-size:0.8rem; color:var(--text-dim);">${l.d}</div>
+                <div style="font-size:1.1rem; font-weight:bold; margin-top:4px;">${l.b}</div>
+            </div>
+        `).join('');
+    }
+    renderLogs();
+</script>
+</body>
+</html>
