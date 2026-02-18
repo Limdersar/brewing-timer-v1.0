@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
-    <title>Brewing Timer v5.2</title>
+    <title>Brewing Timer v5.4</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -14,8 +14,8 @@
             --card-active: #2c2c2e;
             --text-main: #ffffff;
             --text-sub: #8e8e93; 
-            --accent-pour: #ff9f0a; /* Pour: Orange */
-            --accent-steep: #0a84ff; /* Steep: Blue */
+            --accent-pour: #ff9f0a;
+            --accent-steep: #0a84ff;
             --accent-steep-bg: rgba(10, 132, 255, 0.15); 
             --danger: #ff453a;
             --success: #30d158;
@@ -59,7 +59,6 @@
 
         .timer-layout { display: flex; flex-direction: column; height: 100%; padding: 15px 20px; }
 
-        /* Meta Bar */
         .meta-bar-compact {
             display: flex;
             justify-content: center;
@@ -78,17 +77,18 @@
         .meta-val { color: #fff; font-weight: 600; margin-left: 3px; }
         .meta-sep { color: #333; font-size: 0.6rem; margin: 0 2px; font-weight: 300; }
 
-        /* Timer Display */
         .timer-container { text-align: center; margin-bottom: 10px; }
-        .main-timer-row { display: flex; align-items: center; justify-content: center; gap: 15px; }
-        .step-countdown { font-size: 2.8rem; font-weight: 800; color: var(--text-main); font-variant-numeric: tabular-nums; }
-        .timer-divider { font-size: 2rem; color: #333; font-weight: 300; }
-        .total-elapsed { font-size: 2.8rem; font-weight: 800; color: var(--text-sub); font-variant-numeric: tabular-nums; }
-        .timer-labels { display: flex; justify-content: center; gap: 60px; font-size: 0.65rem; color: var(--text-sub); text-transform: uppercase; margin-top: 4px; letter-spacing: 0.5px; }
+        .main-timer-row { display: flex; align-items: flex-start; justify-content: center; gap: 20px; }
+        
+        .timer-block { display: flex; flex-direction: column; align-items: center; min-width: 120px; }
+        .step-countdown { font-size: 2.8rem; font-weight: 800; color: var(--text-main); font-variant-numeric: tabular-nums; line-height: 1; }
+        .total-elapsed { font-size: 2.8rem; font-weight: 800; color: var(--text-sub); font-variant-numeric: tabular-nums; line-height: 1; }
+        .timer-label { font-size: 0.65rem; color: var(--text-sub); text-transform: uppercase; margin-top: 8px; letter-spacing: 0.5px; font-weight: 600; }
+        
+        .timer-divider { font-size: 2rem; color: #333; font-weight: 300; margin-top: 5px; }
 
         .cur-tip-display { text-align: center; height: 20px; margin: 10px 0; font-size: 0.8rem; color: var(--accent-pour); font-weight: 500; opacity: 0.9; }
 
-        /* Timeline Bar */
         .timeline-wrapper { margin: 30px 0 50px 0; position: relative; }
         .timeline-container { width: 100%; height: 36px; background: #1c1c1e; border-radius: 6px; position: relative; border: 1px solid #333; }
         .step-progress-fill-container { position: absolute; top: 0; height: 100%; z-index: 1; }
@@ -105,21 +105,18 @@
         .divider-label-top { position: absolute; top: -24px; left: 50%; transform: translateX(-50%); font-size: 0.7rem; font-weight: 800; color: var(--success); white-space: nowrap; }
         .divider-label-bottom { position: absolute; bottom: -24px; left: 50%; transform: translateX(-50%); font-size: 0.7rem; font-weight: 600; color: var(--text-sub); white-space: nowrap; }
 
-        /* Water Info */
         .water-stats { display: flex; justify-content: space-around; margin-bottom: 15px; background: #111; padding: 14px; border-radius: 20px; }
         .water-item { text-align: center; }
         .water-label { font-size: 0.7rem; color: var(--text-sub); text-transform: uppercase; margin-bottom: 4px; }
         .water-val-big { font-size: 1.8rem; font-weight: 800; color: var(--success); line-height: 1; }
         .water-val-total { font-size: 1.5rem; font-weight: 700; color: var(--accent-pour); line-height: 1; }
 
-        /* Next Step Info */
         .next-step-card { background: var(--card-active); border-radius: 20px; padding: 18px; text-align: center; flex: 1; display: flex; flex-direction: column; justify-content: center; border: 1px solid #333; }
         .next-tag { font-size: 0.75rem; color: var(--accent-pour); font-weight: 800; margin-bottom: 6px; letter-spacing: 1px; }
         .next-title { font-size: 1.4rem; font-weight: 900; color: #fff; margin-bottom: 4px; line-height: 1.2; }
         .next-desc { font-size: 0.85rem; color: var(--text-sub); font-weight: 500; }
         .cur-step-footer { margin-top: 10px; font-size: 0.85rem; color: #444; text-align: center; }
 
-        /* Controls */
         .controls { display: flex; gap: 10px; margin-top: 15px; }
         .btn { padding: 16px; border-radius: 16px; border: none; font-size: 1rem; font-weight: 700; cursor: pointer; flex: 1; transition: opacity 0.2s; }
         .btn:active { opacity: 0.7; }
@@ -127,24 +124,20 @@
         .btn-stop { background-color: var(--danger); color: #fff; display: none; }
         .btn-reset { background-color: #333; color: #fff; flex: 0.4; }
         
-        /* Editor */
         .editor-container { padding: 20px; padding-bottom: 120px; }
         .recipe-item { background: var(--card-bg); padding: 12px; margin-bottom: 12px; border-radius: 10px; border: 1px solid #333; }
         .recipe-grid { display: grid; grid-template-columns: 1.2fr 1fr 0.8fr 0.8fr 30px; gap: 8px; align-items: start; margin-bottom: 8px; }
         input, select { background: #2c2c2e; border: 1px solid #3a3a3c; color: #fff; padding: 10px; border-radius: 8px; width: 100%; font-size: 0.9rem; }
         label { font-size: 0.7rem; color: var(--text-sub); margin-bottom: 4px; display: block; }
 
-        /* Overlay */
         .countdown-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
         .countdown-num { font-size: 10rem; font-weight: 900; color: var(--accent-pour); }
 
-        /* Share/Library UI */
         .lib-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         .lib-btn { background: #333; color: #fff; border: none; padding: 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
         .lib-btn-primary { background: var(--accent-pour); color: #000; }
         .share-btn { background: #2c2c2e; border: none; color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; }
 
-        /* Modal simple */
         #customModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
         .modal-content { background: var(--card-bg); width: 100%; max-width: 400px; padding: 25px; border-radius: 24px; text-align: center; border: 1px solid #333; }
         .modal-input { margin: 15px 0; background: #000; color: #fff; border: 1px solid #444; padding: 12px; width: 100%; border-radius: 8px; font-family: monospace; font-size: 0.8rem; }
@@ -158,7 +151,6 @@
     <div id="startCountText" class="countdown-num">3</div>
 </div>
 
-<!-- Modal for Import/Export -->
 <div id="customModal" onclick="if(event.target === this) closeM()">
     <div class="modal-content" onclick="event.stopPropagation()">
         <h4 id="modalTitle" style="margin:0 0 10px 0;">레시피 코드</h4>
@@ -188,11 +180,16 @@
 
             <div class="timer-container">
                 <div class="main-timer-row">
-                    <div class="step-countdown" id="stepCountdown">0:00</div>
+                    <div class="timer-block">
+                        <div class="step-countdown" id="stepCountdown">0:00</div>
+                        <div class="timer-label">남은 단계 시간</div>
+                    </div>
                     <div class="timer-divider">/</div>
-                    <div class="total-elapsed" id="totalTime">0:00</div>
+                    <div class="timer-block">
+                        <div class="total-elapsed" id="totalTime">0:00</div>
+                        <div class="timer-label">총 경과 시간</div>
+                    </div>
                 </div>
-                <div class="timer-labels"><span>남은 단계</span><span>총 경과</span></div>
             </div>
 
             <div class="cur-tip-display" id="curTipDisplay"></div>
@@ -231,7 +228,6 @@
             <h3>가이드 편집</h3>
             <div id="stepList"></div>
             <button class="btn" style="background:var(--success); color:#fff; width:100%; margin:10px 0;" onclick="addStep()">+ 단계 추가</button>
-            
             <div id="savedList"></div>
         </div>
     </div>
@@ -239,7 +235,7 @@
 
 <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('timer')">타이머</button>
-    <button class="tab-btn" onclick="switchTab('editor')">보관함/설정</button>
+    <button class="tab-btn" onclick="switchTab('editor')">레시피</button>
 </div>
 
 <script>
@@ -289,32 +285,74 @@
         }, 1000);
     }
 
-    function startTimer() { running = true; startTs = Date.now() - (elapsed * 1000); timerIdx = setInterval(update, 100); document.getElementById('btnStart').style.display = 'none'; document.getElementById('btnStop').style.display = 'block'; }
-    function pauseTimer() { running = false; clearInterval(timerIdx); document.getElementById('btnStart').style.display = 'block'; document.getElementById('btnStop').style.display = 'none'; document.getElementById('btnStart').innerText = "재개"; }
-    function resetTimer() { pauseTimer(); elapsed = 0; lastSpokenIdx = -1; updateUI(0); document.getElementById('btnStart').innerText = "추출 시작"; }
+    function startTimer() { 
+        running = true; 
+        startTs = Date.now() - (elapsed * 1000); 
+        timerIdx = setInterval(update, 100); 
+        document.getElementById('btnStart').style.display = 'none'; 
+        document.getElementById('btnStop').style.display = 'block'; 
+    }
+    
+    function pauseTimer() { 
+        running = false; 
+        clearInterval(timerIdx); 
+        document.getElementById('btnStart').style.display = 'block'; 
+        document.getElementById('btnStop').style.display = 'none'; 
+        document.getElementById('btnStart').innerText = "재개"; 
+    }
+    
+    function resetTimer() { 
+        pauseTimer(); 
+        synth.cancel(); 
+        elapsed = 0; 
+        lastSpokenIdx = -1; 
+        updateUI(0); 
+        document.getElementById('btnStart').innerText = "추출 시작"; 
+    }
+
     function update() { elapsed = (Date.now() - startTs) / 1000; updateUI(elapsed); }
 
     function updateUI(totalSec) {
         const totalTimeMax = steps.reduce((a,b) => a + parseInt(b.time), 0);
         let accTime = 0, cur = null, next = null, curIdx = -1;
+        
         for(let i=0; i<steps.length; i++){
             let t = parseInt(steps[i].time); const fillEl = document.getElementById(`fill-${i}`);
-            if(totalSec < accTime + t) { if (curIdx === -1) { cur = steps[i]; curIdx = i; if(i+1 < steps.length) next = steps[i+1]; if (fillEl) fillEl.style.width = Math.min(100, ((totalSec - accTime) / t) * 100) + "%"; } else if (fillEl) fillEl.style.width = "0%"; }
+            if(totalSec < accTime + t) { 
+                if (curIdx === -1) { 
+                    cur = steps[i]; curIdx = i; 
+                    if(i+1 < steps.length) next = steps[i+1]; 
+                    if (fillEl) fillEl.style.width = Math.min(100, ((totalSec - accTime) / t) * 100) + "%"; 
+                } else if (fillEl) fillEl.style.width = "0%"; 
+            }
             else { if (fillEl) fillEl.style.width = "100%"; }
             accTime += t;
         }
+
         document.getElementById('totalTime').innerText = formatTime(Math.floor(totalSec));
-        document.querySelectorAll('.step-name-label').forEach((label, idx) => { label.classList.remove('active-pour', 'active-steep'); if(idx === curIdx) label.classList.add(cur.method === '푸어' ? 'active-pour' : 'active-steep'); });
+        document.querySelectorAll('.step-name-label').forEach((label, idx) => { 
+            label.classList.remove('active-pour', 'active-steep'); 
+            if(idx === curIdx) label.classList.add(cur.method === '푸어' ? 'active-pour' : 'active-steep'); 
+        });
+
         if(cur) {
             const stepStartTime = steps.slice(0, curIdx).reduce((acc, s) => acc + parseInt(s.time), 0);
             const stepRem = Math.max(0, parseInt(cur.time) - (totalSec - stepStartTime));
-            if(curIdx !== lastSpokenIdx) { speak(`${cur.name}. ${cur.water}그램.`); lastSpokenIdx = curIdx; }
+            
+            if(running && curIdx !== lastSpokenIdx) { 
+                speak(`${cur.name}. ${cur.water}그램.`); 
+                lastSpokenIdx = curIdx; 
+            } else if (!running) {
+                lastSpokenIdx = curIdx;
+            }
+
             document.getElementById('stepCountdown').innerText = formatTime(Math.ceil(stepRem));
             document.getElementById('liveWaterTarget').innerText = cur.water;
             document.getElementById('curTipDisplay').innerText = cur.tip || "";
             let currentTargetTotal = 0; for(let j=0; j<=curIdx; j++) currentTargetTotal += parseInt(steps[j].water);
             document.getElementById('targetWaterTotal').innerText = currentTargetTotal;
             document.getElementById('curStepNameDisplay').innerText = `진행 중: ${cur.name}`;
+            
             if(next) {
                 document.getElementById('nextStepTag').style.color = next.method === '푸어' ? 'var(--accent-pour)' : 'var(--accent-steep)';
                 document.getElementById('nextStepAction').innerText = `${next.name} - ${next.water}g`;
@@ -424,13 +462,12 @@
     }
     function deleteFromLib(idx) { recipeLibrary.splice(idx, 1); localStorage.setItem(KEY_LIB, JSON.stringify(recipeLibrary)); renderLibrary(); }
 
-    /* Share Features */
     function exportRecipe(idx) {
         const item = recipeLibrary[idx];
         const code = btoa(encodeURIComponent(JSON.stringify(item)));
         openM("레시피 공유", "아래 코드를 복사하여 친구에게 전달하세요.", "복사하기", () => {
             const area = document.getElementById('modalInput'); area.select();
-            document.execCommand('copy'); alert('코드가 클립보드에 복사되었습니다.'); closeM();
+            document.execCommand('copy'); closeM();
         });
         document.getElementById('modalInput').value = code;
     }
@@ -441,8 +478,8 @@
             try {
                 const decoded = JSON.parse(decodeURIComponent(atob(code)));
                 recipeLibrary.push(decoded); localStorage.setItem(KEY_LIB, JSON.stringify(recipeLibrary));
-                renderLibrary(); alert('성공적으로 불러왔습니다!'); closeM();
-            } catch(e) { alert('유효하지 않은 코드입니다.'); }
+                renderLibrary(); closeM();
+            } catch(e) { }
         });
     }
 
