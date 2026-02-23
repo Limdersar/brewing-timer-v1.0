@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
-    <title>Brewing Timer v5.4</title>
+    <title>Brewing Timer v5.5</title>
     <style>
         :root {
             --bg-color: #000000;
@@ -125,10 +125,14 @@
         .btn-reset { background-color: #333; color: #fff; flex: 0.4; }
         
         .editor-container { padding: 20px; padding-bottom: 120px; }
-        .recipe-item { background: var(--card-bg); padding: 12px; margin-bottom: 12px; border-radius: 10px; border: 1px solid #333; }
-        .recipe-grid { display: grid; grid-template-columns: 1.2fr 1fr 0.8fr 0.8fr 30px; gap: 8px; align-items: start; margin-bottom: 8px; }
+        .recipe-item { background: var(--card-bg); padding: 15px; margin-bottom: 12px; border-radius: 12px; border: 1px solid #333; }
+        .recipe-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 30px; gap: 10px; align-items: end; margin-bottom: 12px; }
+        .time-input-row { display: flex; gap: 8px; align-items: center; background: #2c2c2e; padding: 8px; border-radius: 8px; border: 1px solid #3a3a3c; }
+        .time-input-row input { background: transparent; border: none; padding: 2px; text-align: center; width: 45px; font-family: monospace; }
+        .time-sep { color: var(--text-sub); font-weight: 800; }
+        
         input, select { background: #2c2c2e; border: 1px solid #3a3a3c; color: #fff; padding: 10px; border-radius: 8px; width: 100%; font-size: 0.9rem; }
-        label { font-size: 0.7rem; color: var(--text-sub); margin-bottom: 4px; display: block; }
+        label { font-size: 0.7rem; color: var(--text-sub); margin-bottom: 4px; display: block; font-weight: 600; }
 
         .countdown-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
         .countdown-num { font-size: 10rem; font-weight: 900; color: var(--accent-pour); }
@@ -225,7 +229,10 @@
                 <div><label>온도 (°C)</label><input type="number" id="editTemp" onchange="updateMeta()"></div>
                 <div><label>추출 도구</label><input type="text" id="editDripper" onchange="updateMeta()"></div>
             </div>
-            <h3>가이드 편집</h3>
+            <h3 style="display:flex; justify-content:space-between; align-items:center;">
+                가이드 편집 
+                <span style="font-size:0.7rem; font-weight:normal; color:var(--text-sub);">* 전체 경과 시간(분:초) 입력</span>
+            </h3>
             <div id="stepList"></div>
             <button class="btn" style="background:var(--success); color:#fff; width:100%; margin:10px 0;" onclick="addStep()">+ 단계 추가</button>
             <div id="savedList"></div>
@@ -239,15 +246,17 @@
 </div>
 
 <script>
-    const KEY_META = 'brew_recipe_meta_v51';
-    const KEY_STEPS = 'brew_recipe_steps_v51';
-    const KEY_LIB = 'brew_recipe_library_v51';
+    const KEY_META = 'brew_recipe_meta_v55';
+    const KEY_STEPS = 'brew_recipe_steps_v55';
+    const KEY_LIB = 'brew_recipe_library_v55';
 
     let recipeMeta = JSON.parse(localStorage.getItem(KEY_META)) || { coffee: 20, temp: 92, grind: 24, dripper: "V60", name: "기본 레시피" };
+    
+    // v5.5에서는 time 대신 startTime, endTime 사용 (단위: 초)
     let steps = JSON.parse(localStorage.getItem(KEY_STEPS)) || [
-        { name: "뜸", method: "푸어", time: 40, water: 40, tip: "골고루 적시기" },
-        { name: "1차", method: "푸어", time: 60, water: 120, tip: "원형으로 푸어링" },
-        { name: "2차", method: "푸어", time: 60, water: 140, tip: "마무리 푸어링" }
+        { name: "뜸", method: "푸어", startTime: 0, endTime: 40, water: 40, tip: "골고루 적시기" },
+        { name: "1차", method: "푸어", startTime: 40, endTime: 100, water: 120, tip: "원형으로 푸어링" },
+        { name: "2차", method: "푸어", startTime: 100, endTime: 160, water: 140, tip: "마무리 푸어링" }
     ];
     let recipeLibrary = JSON.parse(localStorage.getItem(KEY_LIB)) || [];
     
@@ -313,20 +322,25 @@
     function update() { elapsed = (Date.now() - startTs) / 1000; updateUI(elapsed); }
 
     function updateUI(totalSec) {
-        const totalTimeMax = steps.reduce((a,b) => a + parseInt(b.time), 0);
-        let accTime = 0, cur = null, next = null, curIdx = -1;
+        if (steps.length === 0) return;
+        const totalTimeMax = steps[steps.length - 1].endTime;
+        let cur = null, next = null, curIdx = -1;
         
         for(let i=0; i<steps.length; i++){
-            let t = parseInt(steps[i].time); const fillEl = document.getElementById(`fill-${i}`);
-            if(totalSec < accTime + t) { 
-                if (curIdx === -1) { 
-                    cur = steps[i]; curIdx = i; 
+            const s = steps[i];
+            const fillEl = document.getElementById(`fill-${i}`);
+            const duration = s.endTime - s.startTime;
+
+            if(totalSec < s.endTime) { 
+                if (totalSec >= s.startTime && curIdx === -1) { 
+                    cur = s; curIdx = i; 
                     if(i+1 < steps.length) next = steps[i+1]; 
-                    if (fillEl) fillEl.style.width = Math.min(100, ((totalSec - accTime) / t) * 100) + "%"; 
-                } else if (fillEl) fillEl.style.width = "0%"; 
+                    if (fillEl) fillEl.style.width = Math.min(100, ((totalSec - s.startTime) / duration) * 100) + "%"; 
+                } else if (fillEl) {
+                    fillEl.style.width = totalSec < s.startTime ? "0%" : "100%";
+                }
             }
             else { if (fillEl) fillEl.style.width = "100%"; }
-            accTime += t;
         }
 
         document.getElementById('totalTime').innerText = formatTime(Math.floor(totalSec));
@@ -336,8 +350,7 @@
         });
 
         if(cur) {
-            const stepStartTime = steps.slice(0, curIdx).reduce((acc, s) => acc + parseInt(s.time), 0);
-            const stepRem = Math.max(0, parseInt(cur.time) - (totalSec - stepStartTime));
+            const stepRem = Math.max(0, cur.endTime - totalSec);
             
             if(running && curIdx !== lastSpokenIdx) { 
                 speak(`${cur.name}. ${cur.water}그램.`); 
@@ -367,25 +380,41 @@
 
     function renderTimeline() {
         const box = document.getElementById('timelineBox'); box.innerHTML = ''; 
-        const totalT = steps.reduce((a,b) => a + parseInt(b.time), 0);
-        let accT = 0, accW = 0;
+        if (steps.length === 0) return;
+        const totalT = steps[steps.length - 1].endTime;
+        let accW = 0;
         steps.forEach((s, i) => {
-            const width = (parseInt(s.time) / totalT) * 100; const left = (accT / totalT) * 100;
-            accW += parseInt(s.water); accT += parseInt(s.time);
+            const width = ((s.endTime - s.startTime) / totalT) * 100; 
+            const left = (s.startTime / totalT) * 100;
+            accW += parseInt(s.water); 
+            
             const fillC = document.createElement('div'); fillC.className = 'step-progress-fill-container' + (s.method === '침출' ? ' steep-zone' : '');
             fillC.style.left = left + "%"; fillC.style.width = width + "%";
             const fill = document.createElement('div'); fill.id = `fill-${i}`; fill.className = `step-progress-fill ${s.method === '침출' ? 'fill-steep' : 'fill-pour'}`;
             fillC.appendChild(fill); box.appendChild(fillC);
+            
             const block = document.createElement('div'); block.className = 'step-block'; block.style.left = left + "%"; block.style.width = width + "%";
             block.innerHTML = `<span class="step-water-label">${s.water}g</span><span class="step-name-label">${s.name}</span>`;
             box.appendChild(block);
-            const div = document.createElement('div'); div.className = 'step-divider'; div.style.left = ((accT / totalT) * 100) + "%";
-            div.innerHTML = `<div class="divider-label-top">${accW}g</div><div class="divider-label-bottom">${formatTime(accT)}</div>`;
+            
+            const div = document.createElement('div'); div.className = 'step-divider'; div.style.left = ((s.endTime / totalT) * 100) + "%";
+            div.innerHTML = `<div class="divider-label-top">${accW}g</div><div class="divider-label-bottom">${formatTime(s.endTime)}</div>`;
             box.appendChild(div);
         });
     }
 
-    function formatTime(s) { const m = Math.floor(s/60).toString(); const sc = (s%60).toString().padStart(2,'0'); return `${m}:${sc}`; }
+    function formatTime(s) { 
+        const m = Math.floor(s/60).toString(); 
+        const sc = (s%60).toString().padStart(2,'0'); 
+        return `${m}:${sc}`; 
+    }
+    
+    // "01:20" 형태를 초로 변환
+    function timeToSec(str) {
+        const parts = str.split(':');
+        if (parts.length === 1) return parseInt(parts[0]) || 0;
+        return (parseInt(parts[0]) * 60) + (parseInt(parts[1]) || 0);
+    }
 
     function updateMeta() {
         recipeMeta.coffee = document.getElementById('editCoffee').value; recipeMeta.temp = document.getElementById('editTemp').value;
@@ -404,21 +433,38 @@
 
     function renderStepEditor() {
         const list = document.getElementById('stepList');
-        list.innerHTML = steps.map((s, i) => `
+        list.innerHTML = steps.map((s, i) => {
+            const startVal = formatTime(s.startTime);
+            const endVal = formatTime(s.endTime);
+            return `
             <div class="recipe-item">
                 <div class="recipe-grid">
                     <div><label>명칭</label><input type="text" value="${s.name}" onchange="steps[${i}].name=this.value; updateMeta();"></div>
                     <div><label>방식</label><select onchange="steps[${i}].method=this.value; updateMeta();"><option value="푸어" ${s.method==='푸어'?'selected':''}>푸어</option><option value="침출" ${s.method==='침출'?'selected':''}>침출</option></select></div>
                     <div><label>물(g)</label><input type="number" value="${s.water}" onchange="steps[${i}].water=this.value; updateMeta();"></div>
-                    <div><label>시간(s)</label><input type="number" value="${s.time}" onchange="steps[${i}].time=this.value; updateMeta();"></div>
-                    <button onclick="deleteStep(${i})" style="color:var(--danger); background:none; border:none; font-size:1.5rem; margin-top:20px;">&times;</button>
+                    <button onclick="deleteStep(${i})" style="color:var(--danger); background:none; border:none; font-size:1.5rem;">&times;</button>
                 </div>
-                <div style="width:100%"><label>단계별 팁</label><input type="text" value="${s.tip || ''}" onchange="steps[${i}].tip=this.value; updateMeta();"></div>
-            </div>`).join('');
+                <div style="display:grid; grid-template-columns:1fr 1.5fr; gap:10px; margin-bottom:12px;">
+                    <div>
+                        <label>경과 시간 (시작 ~ 종료)</label>
+                        <div class="time-input-row">
+                            <input type="text" value="${startVal}" onchange="steps[${i}].startTime=timeToSec(this.value); updateMeta(); renderStepEditor();">
+                            <span class="time-sep">~</span>
+                            <input type="text" value="${endVal}" onchange="steps[${i}].endTime=timeToSec(this.value); updateMeta(); renderStepEditor();">
+                        </div>
+                    </div>
+                    <div><label>단계별 팁</label><input type="text" value="${s.tip || ''}" onchange="steps[${i}].tip=this.value; updateMeta();"></div>
+                </div>
+            </div>`}).join('');
         updateMeta(); renderLibrary();
     }
 
-    function addStep() { steps.push({name:"추가", method:"푸어", time:30, water:50, tip:""}); renderStepEditor(); }
+    function addStep() { 
+        const lastStep = steps[steps.length - 1];
+        const newStart = lastStep ? lastStep.endTime : 0;
+        steps.push({name:"추가", method:"푸어", startTime: newStart, endTime: newStart + 30, water:50, tip:""}); 
+        renderStepEditor(); 
+    }
     function deleteStep(i) { steps.splice(i,1); renderStepEditor(); }
 
     function switchTab(id) {
@@ -492,3 +538,4 @@
 </script>
 </body>
 </html>
+
